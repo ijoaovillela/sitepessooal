@@ -113,6 +113,7 @@
   .site{ padding-top:var(--respiro); container-type:inline-size; }
 
   .nav{
+    position:relative;
     display:flex; align-items:center; gap:clamp(20px,4vw,56px);
     padding:0 var(--nav-gutter) 0;
     font-size:var(--t-nav); font-weight:600;
@@ -142,6 +143,18 @@
   }
   .nav__idioma button[aria-pressed="true"]{ color:var(--acento); }
   .nav__idioma button:hover{ color:var(--acento-hover); }
+  /* no desktop os links são filhos diretos do flex; o wrapper some com display:contents */
+  .nav__links{ display:contents; }
+  /* botão hambúrguer: escondido no desktop, vira X quando aberto */
+  .nav__menu{
+    display:none; flex-direction:column; gap:5px;
+    background:none; border:0; padding:6px; margin:-6px; cursor:pointer;
+  }
+  .nav__menu-bar{ width:24px; height:2px; background:var(--texto);
+    border-radius:2px; transition:transform .2s ease, opacity .2s ease; }
+  .nav[data-menu="aberto"] .nav__menu-bar:nth-child(1){ transform:translateY(7px) rotate(45deg); }
+  .nav[data-menu="aberto"] .nav__menu-bar:nth-child(2){ opacity:0; }
+  .nav[data-menu="aberto"] .nav__menu-bar:nth-child(3){ transform:translateY(-7px) rotate(-45deg); }
 
   /* pt/en: só um dos dois fica visível */
   [data-idioma="pt"] .en, [data-idioma="en"] .pt{ display:none; }
@@ -370,6 +383,30 @@
     .marca{ height:52px; }
     .faixa{ --card:min(72vw,420px); }
   }
+
+  /* ---- celular ---------------------------------------------------------
+     abaixo de 600px: menu no hambúrguer, títulos que escalam sem vazar,
+     respiros mais curtos e grades reflowadas. */
+  @media (max-width:600px){
+    :root{
+      --t-h1:clamp(30px,9vw,42px); --t-h2:clamp(26px,7.5vw,34px);
+      --t-h3:22px; --t-corpo:16px; --t-filtro:14px;
+      --nav-gutter:20px; --gutter:20px; --ritmo:72px; --respiro:22px;
+    }
+    .nav{ gap:14px; }
+    .nav__menu{ display:flex; }
+    .nav__links{
+      display:none; position:absolute; top:calc(100% + 12px);
+      right:var(--nav-gutter); min-width:190px;
+      flex-direction:column; gap:20px; padding:22px 24px;
+      background:var(--meta-fundo);
+      -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+      border:1px solid var(--borda); border-radius:var(--raio); z-index:60;
+    }
+    .nav[data-menu="aberto"] .nav__links{ display:flex; }
+    .marcas{ grid-template-columns:repeat(2,1fr); }
+    h1,h2,h3{ overflow-wrap:anywhere; }
+  }
 </style>
 </head>
 <body>
@@ -395,14 +432,19 @@
       <svg class="logo--solida" viewBox="0 0 64 88" fill="none"><path d="M64 51.8968L46.5991 87.1361L44.2698 87.2773L43.301 83.6017L40.3501 72.3959L41.1968 69.9843C41.8687 68.0694 42.586 66.1686 43.3728 64.2925C44.3417 61.9845 45.3321 58.8291 45.6399 55.0087C45.9393 51.2671 45.4818 48.1199 44.9728 45.8955C43.8639 42.061 40.3022 39.414 36.2472 39.414H35.567C31.5491 39.414 28.0067 42.0151 26.869 45.8037C26.439 47.2313 26.1696 48.699 26.0678 50.1749C26.0055 51.1129 25.9804 52.5477 26.2821 54.6109C26.9743 59.3034 28.7408 62.9437 29.8857 65.2565C30.6952 66.8877 31.8952 69.8537 33.6149 72.3312C34.4736 76.8978 35.3299 81.0595 36.1897 85.1376C36.3718 86.0062 36.555 86.8689 36.737 87.7328L32.3192 88L18.7493 72.5383L0 53.5634L14.1099 56.8471L10.7675 48.2482L7.05496 35.8643L23.578 19.8082L29.8893 10.5032L24.7205 0L39.5442 8.49529L48.2698 22.5446V26.9229L54.2098 28.9308L63.9988 51.8956L64 51.8968Z" fill="currentColor"/></svg>
       <svg class="logo--vazada" viewBox="-1.5 -1.5 67 91" fill="none"><path d="M64 51.8968L46.5991 87.1361L44.2698 87.2773L43.301 83.6017L40.3501 72.3959L41.1968 69.9843C41.8687 68.0694 42.586 66.1686 43.3728 64.2925C44.3417 61.9845 45.3321 58.8291 45.6399 55.0087C45.9393 51.2671 45.4818 48.1199 44.9728 45.8955C43.8639 42.061 40.3022 39.414 36.2472 39.414H35.567C31.5491 39.414 28.0067 42.0151 26.869 45.8037C26.439 47.2313 26.1696 48.699 26.0678 50.1749C26.0055 51.1129 25.9804 52.5477 26.2821 54.6109C26.9743 59.3034 28.7408 62.9437 29.8857 65.2565C30.6952 66.8877 31.8952 69.8537 33.6149 72.3312C34.4736 76.8978 35.3299 81.0595 36.1897 85.1376C36.3718 86.0062 36.555 86.8689 36.737 87.7328L32.3192 88L18.7493 72.5383L0 53.5634L14.1099 56.8471L10.7675 48.2482L7.05496 35.8643L23.578 19.8082L29.8893 10.5032L24.7205 0L39.5442 8.49529L48.2698 22.5446V26.9229L54.2098 28.9308L63.9988 51.8956L64 51.8968Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
     </span>
-    <a href="#inicio"><span class="pt">Início</span><span class="en">Home</span></a>
-    <a href="#sobre"><span class="pt">Sobre mim</span><span class="en">About me</span></a>
-    <a href="#portfolio"><span class="pt">Portfólio</span><span class="en">Portfolio</span></a>
-    <a href="#contato"><span class="pt">Contato</span><span class="en">Contact</span></a>
+    <div class="nav__links" id="nav-links">
+      <a href="#inicio"><span class="pt">Início</span><span class="en">Home</span></a>
+      <a href="#sobre"><span class="pt">Sobre mim</span><span class="en">About me</span></a>
+      <a href="#portfolio"><span class="pt">Portfólio</span><span class="en">Portfolio</span></a>
+      <a href="#contato"><span class="pt">Contato</span><span class="en">Contact</span></a>
+    </div>
     <button type="button" class="nav__spark" data-toggle-modo aria-pressed="false">Spark</button>
     <span class="nav__idioma">
       <button type="button" data-set-idioma="en" aria-pressed="false" aria-label="English">US</button>/<button type="button" data-set-idioma="pt" aria-pressed="true" aria-label="Português">BR</button>
     </span>
+    <button type="button" class="nav__menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="nav-links">
+      <span class="nav__menu-bar"></span><span class="nav__menu-bar"></span><span class="nav__menu-bar"></span>
+    </button>
   </nav>
 
   <section class="hero container">
@@ -898,6 +940,29 @@
       })(t0);
     }
     entrar.addEventListener('click', acender);
+  }  // ---- menu hambúrguer (mobile) ---------------------------------------
+  // abre/fecha o painel dos 4 links; Spark e BR/US ficam fora, sempre visíveis.
+  var navMob = document.querySelector('.nav');
+  var botaoMenu = navMob && navMob.querySelector('.nav__menu');
+  if (navMob && botaoMenu) {
+    var fecharMenu = function () {
+      delete navMob.dataset.menu;
+      botaoMenu.setAttribute('aria-expanded', 'false');
+    };
+    botaoMenu.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (navMob.dataset.menu === 'aberto') { fecharMenu(); }
+      else { navMob.dataset.menu = 'aberto'; botaoMenu.setAttribute('aria-expanded', 'true'); }
+    });
+    navMob.querySelectorAll('.nav__links a').forEach(function (a) {
+      a.addEventListener('click', fecharMenu);   // navegou, fecha o menu
+    });
+    document.addEventListener('click', function (e) {
+      if (navMob.dataset.menu === 'aberto' && !e.target.closest('.nav')) { fecharMenu(); }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && navMob.dataset.menu === 'aberto') { fecharMenu(); botaoMenu.focus(); }
+    });
   }</script>
 </body>
 </html>
