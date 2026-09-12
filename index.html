@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>João Villela</title>
+<style>
+  @font-face { font-family:'Nacelle'; font-weight:400; font-style:normal; font-display:swap; src:url('assets/fonts/nacelle/Nacelle-Regular.otf') format('opentype'); }
+  @font-face { font-family:'Nacelle'; font-weight:400; font-style:italic;  font-display:swap; src:url('assets/fonts/nacelle/Nacelle-Italic.otf') format('opentype'); }
+  @font-face { font-family:'Nacelle'; font-weight:600; font-style:normal; font-display:swap; src:url('assets/fonts/nacelle/Nacelle-SemiBold.otf') format('opentype'); }
+  @font-face { font-family:'Nacelle'; font-weight:600; font-style:italic;  font-display:swap; src:url('assets/fonts/nacelle/Nacelle-SemiBoldItalic.otf') format('opentype'); }
+  @font-face { font-family:'Nacelle'; font-weight:900; font-style:normal; font-display:swap; src:url('assets/fonts/nacelle/Nacelle-Black.otf') format('opentype'); }
+  @font-face { font-family:'Nacelle'; font-weight:900; font-style:italic;  font-display:swap; src:url('assets/fonts/nacelle/Nacelle-BlackItalic.otf') format('opentype'); }
+
+  /* ---- tokens: specs/design.md ---------------------------------------- */
+  :root{
+    /* cinco cores cruas */
+    --preto:#000000;
+    --branco:#FFFFFF;
+    --papel:#FDFBF7;
+    --cinza-claro:#919191;
+    --cinza-escuro:#5A5A5A;
+    --laranja:#E94B1E;
+
+    /* modo escuro — padrão */
+    --fundo:var(--preto);
+    --texto:var(--branco);
+    --texto-2:var(--cinza-claro);
+    --acento:var(--laranja);
+    --acento-hover:#FF5A2A;
+    --borda:rgba(255,255,255,0.12);
+    --meta-fundo:rgba(0,0,0,0.92);
+
+    --container:1200px;
+    --gutter:120px;
+    --nav-gutter:64px;
+    --ritmo:160px;
+    --respiro:40px;
+    --respiro-curto:24px;
+    --gap:20px;
+    --raio:16px;
+
+    --t-h1:72px;   --lh-h1:0.95;  --tr-h1:-0.02em;
+    --t-h2:56px;   --lh-h2:1.0;   --tr-h2:-0.01em;
+    --t-h3:40px;   --lh-h3:1.1;
+    --t-filtro:20px;
+    --t-nav:16px;
+    --t-corpo:20px; --lh-corpo:1.6;
+    --t-rotulo:14px;
+    --t-botao:14px;
+
+    --face:'Nacelle', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+  /* modo claro — SPARK. Não é inversão automática: o fundo é papel, não branco */
+  :root[data-modo="claro"]{
+    --fundo:var(--papel);
+    --texto:var(--preto);
+    --texto-2:var(--cinza-escuro);
+    --acento-hover:#C43A12;
+    --borda:rgba(0,0,0,0.14);
+    --meta-fundo:rgba(253,251,247,0.92);
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0; background:var(--fundo); color:var(--texto);
+    font-family:var(--face); font-weight:400;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  @media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto;} *{transition:none !important;} }
+
+  /* ---- troca de modo: a luz nasce no SPARK e se espalha -------------- */
+  /* desliga o cross-fade padrão; quem anima é o clip-path, no JS */
+  ::view-transition-old(root),
+  ::view-transition-new(root){ animation:none; mix-blend-mode:normal; }
+  ::view-transition-old(root){ z-index:0; }
+  ::view-transition-new(root){ z-index:1; }
+
+  /* sem View Transitions: a cor caminha sozinha, mesma sensação em menor grau */
+  @supports not (view-transition-name: none){
+    body, .marca img, .vazio, .nav a, .nav__spark, .filtros button{
+      transition:background-color .5s ease-out, color .5s ease-out,
+                 border-color .5s ease-out, filter .5s ease-out;
+    }
+  }
+  @media (prefers-reduced-motion:reduce){
+    ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*){
+      animation:none !important;
+    }
+  }
+
+  /* duas armadilhas aqui:
+     1. `margin:0 auto` zerava o margin-top das seções que também usam
+        .container, e o ritmo entre elas sumia. Por isso margin-inline.
+     2. com border-box, max-width 1200 + padding 120 dá 960 de conteúdo, não
+        1200. A largura tem que somar as duas laterais para o conteúdo bater
+        os 1200 do design.md com margem de 120 em 1440. */
+  .container{
+    --pad:var(--gutter);   /* respiro lateral real, lido também pela sangria do retrato */
+    max-width:calc(var(--container) + var(--gutter) * 2);
+    margin-inline:auto; padding-inline:var(--pad);
+  }
+  @media (max-width:1440px){ .container{ --pad:clamp(24px,8vw,120px); } }
+
+  :where(a,button):focus-visible{ outline:2px solid var(--acento); outline-offset:4px; }
+
+  /* ---- modelo da página ------------------------------------------------ */
+  /* respiro acima da nav — no mockup são 82px, que na escala normalizada dá 40 */
+  /* container-type: deixa o 100cqw da sangria do retrato medir a largura útil da
+     página, sem a barra de rolagem. o player (position:fixed) fica fora do main
+     de propósito: a contenção faria do main o bloco de referência dele. */
+  .site{ padding-top:var(--respiro); container-type:inline-size; }
+
+  .nav{
+    display:flex; align-items:center; gap:clamp(20px,4vw,56px);
+    padding:0 var(--nav-gutter) 0;
+    font-size:var(--t-nav); font-weight:600;
+    text-transform:uppercase; letter-spacing:0.02em;
+  }
+  /* logo: 88px de altura em 1440, contra nav de 27px → 3,26em */
+  .nav__logo{ height:3.26em; aspect-ratio:64/88; flex:none; color:var(--texto); }
+  .nav__logo svg{ width:100%; height:100%; display:block; }
+  /* escuro usa a sólida; claro usa a alternativa vazada.
+     precisa bater a especificidade de .nav__logo svg, senão as duas aparecem */
+  .nav__logo svg.logo--vazada{ display:none; }
+  [data-modo="claro"] .nav__logo svg.logo--solida{ display:none; }
+  [data-modo="claro"] .nav__logo svg.logo--vazada{ display:block; }
+  .nav a{ color:var(--texto); text-decoration:none; transition:color .15s; }
+  .nav a:hover{ color:var(--acento-hover); }
+  .nav__spark{
+    margin-left:auto; background:none; border:0; padding:0; cursor:pointer;
+    font:inherit; letter-spacing:inherit; text-transform:inherit;
+    color:var(--texto-2); transition:color .15s;
+  }
+  .nav__spark:hover{ color:var(--acento-hover); }
+  [data-modo="claro"] .nav__spark{ color:var(--acento); }
+  .nav__idioma{ color:var(--texto-2); display:flex; align-items:center; }
+  .nav__idioma button{
+    background:none; border:0; padding:0 .15em; cursor:pointer; font:inherit;
+    color:var(--texto-2); transition:color .15s;
+  }
+  .nav__idioma button[aria-pressed="true"]{ color:var(--acento); }
+  .nav__idioma button:hover{ color:var(--acento-hover); }
+
+  /* pt/en: só um dos dois fica visível */
+  [data-idioma="pt"] .en, [data-idioma="en"] .pt{ display:none; }
+
+  section{ margin-top:var(--ritmo); }
+  /* chegando por âncora da nav, o título para com respiro em vez de colar no topo */
+  section[id], nav[id]{ scroll-margin-top:var(--respiro); }
+
+  h1,h2,h3{ margin:0; font-weight:900; text-transform:uppercase; text-wrap:balance; }
+  h1{ font-size:var(--t-h1); line-height:var(--lh-h1); letter-spacing:var(--tr-h1); }
+  h2{ font-size:var(--t-h2); line-height:var(--lh-h2); letter-spacing:var(--tr-h2); }
+  h3{ font-size:var(--t-h3); line-height:var(--lh-h3); letter-spacing:-0.01em; }
+  h2.centro{ text-align:center; }
+  em{ font-style:italic; }
+  .laranja{ color:var(--acento); }
+
+  .hero{ margin-top:calc(var(--ritmo) * .6); }
+  .hero h1{ max-width:14ch; }
+  .hero p{
+    margin:var(--respiro) 0 0; color:var(--texto-2);
+    font-size:var(--t-corpo); line-height:1.5;
+  }
+
+  .filtros{
+    display:flex; justify-content:center; gap:clamp(18px,3vw,44px);
+    margin-top:var(--respiro);
+    font-size:var(--t-filtro); font-weight:600;
+    text-transform:uppercase; letter-spacing:0.02em;
+  }
+  .filtros button{
+    background:none; border:0; padding:0; cursor:pointer; font:inherit;
+    color:var(--texto-2); transition:color .15s;
+  }
+  .filtros button[aria-pressed="true"]{ color:var(--texto); }
+  .filtros button:hover{ color:var(--texto); }
+
+  /* faixas que sangram: a segunda fileira começa deslocada da primeira.
+     o card mede pela tela, não pela fileira — a fileira deslocada é mais larga
+     que a outra, e uma largura em % daria cards de tamanhos diferentes. */
+  /* align-items:flex-start para o stretch padrão do flex não brigar com o
+     aspect-ratio do card quando as duas fileiras tiverem alturas diferentes */
+  .faixa{
+    display:flex; align-items:flex-start;
+    margin-top:var(--respiro); --card:clamp(240px,46vw,680px);
+  }
+  .faixa--desloca{ margin-left:calc(var(--card) * -0.3); }
+
+  /* desfile contínuo e arrastável: a pista leva duas cópias do grupo, e o JS
+     move um deslocamento que dá a volta a cada cópia — por isso a emenda nunca
+     aparece, arrastando para qualquer lado. Não é keyframe de CSS porque
+     animação declarativa não aceita ser empurrada pelo dedo. */
+  .pista{ display:flex; gap:var(--gap); width:max-content; will-change:transform; }
+  .grupo{ display:flex; align-items:flex-start; gap:var(--gap); }
+  .faixa--viva{ cursor:grab; touch-action:pan-y; user-select:none; -webkit-user-select:none; }
+  .faixa--viva.arrastando{ cursor:grabbing; }
+  .faixa--viva img, .faixa--viva a{ -webkit-user-drag:none; }
+  .faixa--viva img{ pointer-events:none; }
+  .sangra:focus-visible{ outline:2px solid var(--acento); outline-offset:-2px; }
+  .vazio{
+    border:1px solid var(--borda); border-radius:var(--raio);
+    display:flex; align-items:flex-end; padding:16px;
+    color:var(--texto-2); font-size:13px; font-weight:600;
+    text-transform:uppercase; letter-spacing:0.08em;
+  }
+  .grupo .vazio, .grupo .case{ flex:none; width:var(--card); aspect-ratio:3/2; }
+  /* card de trabalho: imagem preenchendo, sem borda e sem legenda sobreposta */
+  .case{ object-fit:cover; border-radius:var(--raio); display:block; }
+  /* card de vídeo: mesma caixa, com a marca de play — sem ela não dá pra saber
+     que é vídeo, e legenda sobreposta o design.md não permite */
+  a.case{ position:relative; overflow:hidden; }
+  a.case img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .play{
+    position:absolute; inset:0; margin:auto; width:56px; height:56px;
+    display:grid; place-items:center; border-radius:50%;
+    background:rgba(0,0,0,.45); backdrop-filter:blur(2px);
+    border:1px solid rgba(255,255,255,.5);
+    transition:background .15s, transform .15s;
+  }
+  .play svg{ width:18px; height:18px; fill:#fff; margin-left:3px; }
+  a.case:hover .play{ background:var(--acento); transform:scale(1.08); }
+  .filtrado{ display:none; }
+
+  /* ---- player de vídeo local ------------------------------------------
+     o trabalho em primeiro plano, o site some (design.md §1). fundo escuro nos
+     dois modos: vídeo se vê melhor no escuro, e o modo claro é sobre o site,
+     não sobre o trabalho — por isso o player fixa os tokens do modo escuro. */
+  .player{
+    --texto:var(--branco); --texto-2:var(--cinza-claro); --acento-hover:#FF5A2A;
+    position:fixed; inset:0; z-index:100;
+    display:grid; place-items:center; padding:clamp(16px,4vw,64px);
+    background:rgba(0,0,0,.94); color:var(--texto);
+    opacity:0; transition:opacity .2s ease-out;
+  }
+  .player[hidden]{ display:none; }
+  .player.aberto{ opacity:1; }
+  .player__caixa{ width:min(1200px,100%); display:flex; flex-direction:column; gap:16px; }
+  .player video{ width:100%; aspect-ratio:16/9; background:#000; border-radius:var(--raio); display:block; }
+  /* o .botao vem depois no arquivo; a especificidade dupla vence a margem dele */
+  .player .player__fechar{ margin-top:0; align-self:flex-end; }
+  html[data-player]{ overflow:hidden; }
+
+  /* ---- portal: a página começa no escuro e acende como vela -------------
+     sempre preto, nos dois modos. display só com a classe que o script põe:
+     sem JS o portal não existe (e não usa [hidden], que o artifact força). */
+  .portal{ display:none; position:fixed; inset:0; z-index:200; }
+  html.com-portal .portal{ display:block; }
+  html.com-portal{ overflow:hidden; }
+  /* o escuro ganha um furo de borda macia que cresce a partir da logo */
+  .portal__escuro{
+    position:absolute; inset:0; background:var(--preto);
+    -webkit-mask-image:radial-gradient(circle at var(--luz-x,50%) var(--luz-y,50%), transparent var(--luz,0px), #000 calc(var(--luz,0px) + var(--pena,0px)));
+            mask-image:radial-gradient(circle at var(--luz-x,50%) var(--luz-y,50%), transparent var(--luz,0px), #000 calc(var(--luz,0px) + var(--pena,0px)));
+  }
+  /* halo de chama: luz quente quase branca, não o laranja da marca */
+  .portal__brilho{
+    position:absolute; left:var(--luz-x,50%); top:var(--luz-y,50%);
+    width:min(70vmin,560px); aspect-ratio:1; border-radius:50%; pointer-events:none;
+    background:radial-gradient(circle, rgba(255,224,188,.5) 0%, rgba(255,176,110,.16) 38%, transparent 70%);
+    opacity:0; transform:translate(-50%,-50%) scale(.3);
+  }
+  .portal__entrar{
+    position:absolute; inset:0; width:100%; height:100%; margin:0; padding:0; border:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
+    background:none; color:var(--branco); cursor:pointer; font-family:var(--face);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .portal__logo{ height:clamp(72px,12vh,128px); aspect-ratio:64/88; display:block; }
+  .portal__logo svg{ width:100%; height:100%; display:block; }
+  .portal__texto{
+    font-size:14px; font-weight:600; text-transform:uppercase;
+    letter-spacing:.32em; text-indent:.32em;   /* indent compensa o espaçamento e centraliza de verdade */
+    color:var(--cinza-claro); transition:color .15s;
+  }
+  .portal__entrar:hover .portal__texto,
+  .portal__entrar:focus-visible .portal__texto{ color:var(--laranja); }
+  .portal__entrar:focus-visible{ outline:none; }
+  @media (prefers-reduced-motion:reduce){ .player{ transition:none; } }
+  /* já é filho direto da section, então ocupa a largura toda sem 100vw —
+     que contaria a barra de rolagem e criaria scroll lateral.
+     o overflow corta as faixas na borda, que é a sangria pretendida. */
+  .sangra{ overflow:hidden; }
+
+  .marcas{
+    display:grid; grid-template-columns:repeat(5,1fr);
+    gap:clamp(28px,4vw,56px) var(--gap);
+    margin-top:calc(var(--respiro) * 1.6); align-items:center;
+  }
+  /* logo de marca: monocromática, altura normalizada, sem caixa e sem fundo.
+     os SVGs vêm em branco e cinzas para fundo escuro; no modo claro invertem. */
+  .marca{ display:flex; align-items:center; justify-content:center; height:64px; }
+  .marca img{ max-width:100%; max-height:100%; width:auto; height:auto; display:block; }
+  [data-modo="claro"] .marca img{ filter:invert(1); }
+  .marca--fim{
+    text-align:center; color:var(--texto-2); font-weight:900; text-transform:uppercase;
+    font-size:clamp(12px,1.1vw,15px); letter-spacing:0.06em; line-height:1.2;
+  }
+
+  .sobre{ display:grid; grid-template-columns:minmax(0,640px) 1fr; gap:clamp(32px,6vw,90px); align-items:start; }
+  .sobre__apoio{
+    margin:var(--respiro-curto) 0 0; color:var(--texto-2);
+    font-size:var(--t-rotulo); font-weight:600;
+    text-transform:uppercase; letter-spacing:0.08em;
+  }
+  .sobre__texto p{ font-size:var(--t-corpo); line-height:var(--lh-corpo); color:var(--texto); margin:0 0 1.2em; max-width:65ch; }
+  /* sangra na borda direita (design.md §2). a largura soma o respiro lateral do
+     container e, acima de 1440, a sobra da tela até a borda — por isso só os
+     cantos da esquerda arredondam: os da direita ficam fora da vista.
+     max-width:none porque um img{max-width:100%} genérico anularia a sangria. */
+  .sobre__retrato{
+    width:calc(100% + var(--pad));   /* reserva: certo até 1440 */
+    max-width:none; height:auto; display:block;
+    border-radius:var(--raio) 0 0 var(--raio);
+  }
+  /* acima de 1440 soma a sobra até a borda. 100cqw e não 100vw: vw conta a barra
+     de rolagem e passava 7px da tela em 1920, criando rolagem lateral. dentro de
+     @supports porque, com var() na conta, um navegador sem cqw zeraria a largura
+     em vez de cair na reserva acima. */
+  @supports (width: 1cqw){
+    .sobre__retrato{ width:calc(100% + var(--pad) + max(0px, (100cqw - var(--container) - var(--gutter) * 2) / 2)); }
+  }
+  .sobre__col{ display:flex; flex-direction:column; }
+
+  .botao{
+    display:inline-block; margin-top:var(--respiro);
+    padding:0.95em 1.9em; border:1px solid var(--texto); border-radius:999px;
+    background:none; color:var(--texto); cursor:pointer;
+    font-family:inherit; font-size:var(--t-botao); font-weight:600;
+    text-transform:uppercase; letter-spacing:0.06em; text-decoration:none;
+    transition:color .15s, border-color .15s;
+  }
+  .botao:hover{ color:var(--acento-hover); border-color:var(--acento-hover); }
+  .botao--centro{ display:block; width:fit-content; margin-inline:auto; }
+
+  .mosaico{ display:grid; grid-template-columns:repeat(3,1fr); gap:var(--gap); padding:0 var(--gap); align-items:start; }
+  .mosaico__col{ display:flex; flex-direction:column; gap:var(--gap); }
+  .mosaico img{ width:100%; height:auto; display:block; border-radius:var(--raio); }
+  .mosaico .vazio{ aspect-ratio:3/2; }
+
+  .contato p{ margin:var(--respiro) 0 0; color:var(--texto-2); font-size:var(--t-corpo); line-height:1.5; }
+  .contato a{ color:var(--texto-2); text-decoration:none; transition:color .15s; }
+  .contato a:hover{ color:var(--acento-hover); }
+  /* logo fechando a página: à direita do bloco de contato, com a altura exata
+     dele (título + respiro + 3 linhas), tirada dos tokens — acompanha a escala
+     em qualquer tela. mesma troca da nav: sólida no escuro, vazada no claro. */
+  .contato__linha{ display:flex; justify-content:space-between; align-items:flex-start; gap:var(--respiro); }
+  .contato__logo{
+    flex:none; display:block; color:var(--texto);
+    height:calc(var(--t-h2) * var(--lh-h2) + var(--respiro) + var(--t-corpo) * 1.5 * 3);
+    aspect-ratio:64/88;
+  }
+  .contato__logo svg{ width:100%; height:100%; display:block; }
+  .contato__logo svg.logo--vazada{ display:none; }
+  [data-modo="claro"] .contato__logo svg.logo--solida{ display:none; }
+  [data-modo="claro"] .contato__logo svg.logo--vazada{ display:block; }
+  .regua{ height:1px; background:var(--borda); border:0; margin:var(--ritmo) 0 0; }
+
+  @media (max-width:1000px){
+    :root{ --t-h1:46px; --t-h2:34px; --t-h3:26px; --t-corpo:17px; --t-filtro:15px; --t-nav:13px; --t-rotulo:12px; --ritmo:96px; --respiro:28px; --nav-gutter:24px; }
+    .sobre{ grid-template-columns:1fr; }
+    .sobre__retrato{ width:100%; border-radius:var(--raio); }
+    .marcas{ grid-template-columns:repeat(3,1fr); }
+    .mosaico{ grid-template-columns:1fr; }
+    .contato__linha{ flex-direction:column; }
+    .contato__logo{ height:72px; }
+    .marca{ height:52px; }
+    .faixa{ --card:min(72vw,420px); }
+  }
+</style>
+</head>
+<body>
+<script>
+  document.documentElement.classList.add('com-portal');
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!document.documentElement.dataset.portalPronto) { document.documentElement.classList.remove('com-portal'); }
+  });
+</script>
+
+<div class="portal" id="portal">
+  <div class="portal__escuro"></div>
+  <button type="button" class="portal__entrar" aria-label="Spark — acender a luz e entrar no site">
+    <span class="portal__logo" aria-hidden="true"><svg viewBox="0 0 64 88" fill="none"><path d="M64 51.8968L46.5991 87.1361L44.2698 87.2773L43.301 83.6017L40.3501 72.3959L41.1968 69.9843C41.8687 68.0694 42.586 66.1686 43.3728 64.2925C44.3417 61.9845 45.3321 58.8291 45.6399 55.0087C45.9393 51.2671 45.4818 48.1199 44.9728 45.8955C43.8639 42.061 40.3022 39.414 36.2472 39.414H35.567C31.5491 39.414 28.0067 42.0151 26.869 45.8037C26.439 47.2313 26.1696 48.699 26.0678 50.1749C26.0055 51.1129 25.9804 52.5477 26.2821 54.6109C26.9743 59.3034 28.7408 62.9437 29.8857 65.2565C30.6952 66.8877 31.8952 69.8537 33.6149 72.3312C34.4736 76.8978 35.3299 81.0595 36.1897 85.1376C36.3718 86.0062 36.555 86.8689 36.737 87.7328L32.3192 88L18.7493 72.5383L0 53.5634L14.1099 56.8471L10.7675 48.2482L7.05496 35.8643L23.578 19.8082L29.8893 10.5032L24.7205 0L39.5442 8.49529L48.2698 22.5446V26.9229L54.2098 28.9308L63.9988 51.8956L64 51.8968Z" fill="currentColor"/></svg></span>
+    <span class="portal__texto">Spark</span>
+  </button>
+</div>
+
+<main class="site">
+
+  <nav class="nav" id="inicio" aria-label="Navegação principal">
+    <span class="nav__logo" aria-hidden="true">
+      <svg class="logo--solida" viewBox="0 0 64 88" fill="none"><path d="M64 51.8968L46.5991 87.1361L44.2698 87.2773L43.301 83.6017L40.3501 72.3959L41.1968 69.9843C41.8687 68.0694 42.586 66.1686 43.3728 64.2925C44.3417 61.9845 45.3321 58.8291 45.6399 55.0087C45.9393 51.2671 45.4818 48.1199 44.9728 45.8955C43.8639 42.061 40.3022 39.414 36.2472 39.414H35.567C31.5491 39.414 28.0067 42.0151 26.869 45.8037C26.439 47.2313 26.1696 48.699 26.0678 50.1749C26.0055 51.1129 25.9804 52.5477 26.2821 54.6109C26.9743 59.3034 28.7408 62.9437 29.8857 65.2565C30.6952 66.8877 31.8952 69.8537 33.6149 72.3312C34.4736 76.8978 35.3299 81.0595 36.1897 85.1376C36.3718 86.0062 36.555 86.8689 36.737 87.7328L32.3192 88L18.7493 72.5383L0 53.5634L14.1099 56.8471L10.7675 48.2482L7.05496 35.8643L23.578 19.8082L29.8893 10.5032L24.7205 0L39.5442 8.49529L48.2698 22.5446V26.9229L54.2098 28.9308L63.9988 51.8956L64 51.8968Z" fill="currentColor"/></svg>
+      <svg class="logo--vazada" viewBox="-1.5 -1.5 67 91" fill="none"><path d="M64 51.8968L46.5991 87.1361L44.2698 87.2773L43.301 83.6017L40.3501 72.3959L41.1968 69.9843C41.8687 68.0694 42.586 66.1686 43.3728 64.2925C44.3417 61.9845 45.3321 58.8291 45.6399 55.0087C45.9393 51.2671 45.4818 48.1199 44.9728 45.8955C43.8639 42.061 40.3022 39.414 36.2472 39.414H35.567C31.5491 39.414 28.0067 42.0151 26.869 45.8037C26.439 47.2313 26.1696 48.699 26.0678 50.1749C26.0055 51.1129 25.9804 52.5477 26.2821 54.6109C26.9743 59.3034 28.7408 62.9437 29.8857 65.2565C30.6952 66.8877 31.8952 69.8537 33.6149 72.3312C34.4736 76.8978 35.3299 81.0595 36.1897 85.1376C36.3718 86.0062 36.555 86.8689 36.737 87.7328L32.3192 88L18.7493 72.5383L0 53.5634L14.1099 56.8471L10.7675 48.2482L7.05496 35.8643L23.578 19.8082L29.8893 10.5032L24.7205 0L39.5442 8.49529L48.2698 22.5446V26.9229L54.2098 28.9308L63.9988 51.8956L64 51.8968Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+    </span>
+    <a href="#inicio"><span class="pt">Início</span><span class="en">Home</span></a>
+    <a href="#sobre"><span class="pt">Sobre mim</span><span class="en">About me</span></a>
+    <a href="#portfolio"><span class="pt">Portfólio</span><span class="en">Portfolio</span></a>
+    <a href="#contato"><span class="pt">Contato</span><span class="en">Contact</span></a>
+    <button type="button" class="nav__spark" data-toggle-modo aria-pressed="false">Spark</button>
+    <span class="nav__idioma">
+      <button type="button" data-set-idioma="en" aria-pressed="false" aria-label="English">US</button>/<button type="button" data-set-idioma="pt" aria-pressed="true" aria-label="Português">BR</button>
+    </span>
+  </nav>
+
+  <section class="hero container">
+    <h1 class="pt">Basta uma <em>faísca</em> pra tudo <span class="laranja">começar.</span></h1>
+    <h1 class="en">One <em>spark</em> and it all <span class="laranja">begins.</span></h1>
+    <p class="pt">Ideias viram marca.<br>Marcas viram fogo.</p>
+    <p class="en">Ideas become brands.<br>Brands catch fire.</p>
+  </section>
+
+  <section id="portfolio" aria-labelledby="t-works">
+    <div class="container">
+      <h2 class="centro" id="t-works"><span class="pt">Trabalhos</span><span class="en">Works</span></h2>
+      <div class="filtros" role="group" aria-label="Filtros de trabalho">
+        <button type="button" data-filtro="tudo" aria-pressed="true"><span class="pt">Todos</span><span class="en">All</span></button>
+        <button type="button" data-filtro="marca" aria-pressed="false"><span class="pt">Marcas</span><span class="en">Brands</span></button>
+        <button type="button" data-filtro="aplicacao" aria-pressed="false"><span class="pt">Aplicações</span><span class="en">Apply</span></button>
+        <button type="button" data-filtro="video" aria-pressed="false"><span class="pt">Vídeos</span><span class="en">Videos</span></button>
+      </div>
+    </div>
+    <div class="sangra" tabindex="0" role="region" aria-label="Trabalhos. Arraste para os lados ou use as setas do teclado.">
+      <div class="faixa"><div class="pista"><div class="grupo">
+        <img class="case" data-tipo="marca" src="assets/cases/laxlog.jpg" alt="Laxlog — frota com a marca aplicada" loading="lazy">
+        <a class="case" data-tipo="video" href="https://www.youtube.com/watch?v=KJIK8nrMAMk" target="_blank" rel="noopener"><img src="assets/videos/tempo.jpg" alt="Vídeo Tempo" loading="lazy"><span class="play" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg></span></a>
+        <img class="case" data-tipo="aplicacao" src="assets/apply/enlace-painel.jpg" alt="Enlace — painel digital em rua movimentada" loading="lazy">
+        <img class="case" data-tipo="marca" src="assets/cases/enlace.jpg" alt="Enlace — outdoor da campanha ao entardecer" loading="lazy">
+        <img class="case" data-tipo="aplicacao" src="assets/apply/istoc-sacola.jpg" alt="Istoc — sacola da campanha" loading="lazy">
+        <img class="case" data-tipo="marca" src="assets/cases/istoc.jpg" alt="Istoc — outdoor da campanha Lista Zerada" loading="lazy">
+        <img class="case" data-tipo="aplicacao" src="assets/apply/comida-macarrao.jpg" alt="Ensaio de comida — caixa de macarrão sobre penne cru" loading="lazy">
+        <a class="case" data-tipo="video" href="https://www.youtube.com/watch?v=-GtcAelYB4M" target="_blank" rel="noopener"><img src="assets/videos/enlace-video.jpg" alt="Vídeo Enlace" loading="lazy"><span class="play" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg></span></a>
+        <img class="case" data-tipo="aplicacao" src="assets/apply/padonna-outdoor.jpg" alt="Padonna — outdoor de inauguração" loading="lazy">
+        <img class="case" data-tipo="marca" src="assets/cases/padonna.jpg" alt="Padonna — fachada da panificadora" loading="lazy">
+        <a class="case" data-tipo="video" data-player href="assets/videos/um-ano-de-padonna.mp4"><img src="assets/videos/um-ano-de-padonna.jpg" alt="Vídeo Um ano de Padonna" loading="lazy"><span class="play" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg></span></a>
+        <img class="case" data-tipo="aplicacao" src="assets/apply/laxlog-frota.jpg" alt="Laxlog — caminhões da frota na rua" loading="lazy">
+        <img class="case" data-tipo="marca" src="assets/cases/bai-juju.jpg" alt="Yakisoba Bai Juju — fachada iluminada à noite" loading="lazy">
+        <img class="case" data-tipo="aplicacao" src="assets/apply/comida-queijo.jpg" alt="Ensaio de comida — queijo ralado caindo sobre o bloco" loading="lazy">
+        <img class="case" data-tipo="aplicacao" src="assets/apply/martina-oculos.jpg" alt="Martina — óculos da marca" loading="lazy">
+      </div></div></div>
+      <div class="faixa faixa--desloca"><div class="pista"><div class="grupo">
+        <img class="case" data-tipo="marca" src="assets/cases/martina.jpg" alt="Martina — modelo usando os óculos da marca" loading="lazy">
+        <img class="case" data-tipo="aplicacao" src="assets/apply/baijuju-caixa.jpg" alt="Yakisoba Bai Juju — caixa de yakisoba" loading="lazy">
+        <a class="case" data-tipo="video" href="https://www.youtube.com/watch?v=LasptEv94Ws" target="_blank" rel="noopener"><img src="assets/videos/repara.jpg" alt="Vídeo Repara, do Selo de Sol" loading="lazy"><span class="play" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg></span></a>
+        <img class="case" data-tipo="marca" src="assets/cases/comida.jpg" alt="Ensaio de comida — prato finalizado" loading="lazy">
+        <img class="case" data-tipo="aplicacao" src="assets/apply/enlace-quadro.jpg" alt="Enlace — quadro com a marca" loading="lazy">
+        <a class="case" data-tipo="video" href="https://www.youtube.com/watch?v=IXi7hJXUTUE" target="_blank" rel="noopener"><img src="assets/videos/vinte.jpg" alt="Vídeo Vinte" loading="lazy"><span class="play" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg></span></a>
+        <img class="case" data-tipo="marca" src="assets/cases/choperia.jpg" alt="Choperia do Mário — cardápio impresso em uso" loading="lazy">
+        <img class="case" data-tipo="aplicacao" src="assets/apply/istoc-mochila.jpg" alt="Istoc — mochila personalizada" loading="lazy">
+        <a class="case" data-tipo="video" href="https://www.youtube.com/watch?v=lg4LW3TgWeI" target="_blank" rel="noopener"><img src="assets/videos/volei.jpg" alt="Vídeo Vôlei" loading="lazy"><span class="play" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg></span></a>
+        <img class="case" data-tipo="aplicacao" src="assets/apply/padonna-saco.jpg" alt="Padonna — saco de pão" loading="lazy">
+        <img class="case" data-tipo="aplicacao" src="assets/apply/comida-azeite.jpg" alt="Ensaio de comida — garrafa de azeite de oliva" loading="lazy">
+        <img class="case" data-tipo="aplicacao" src="assets/apply/martina-caixa.jpg" alt="Martina — caixa da marca" loading="lazy">
+        <a class="case" data-tipo="video" data-player href="assets/videos/seu-decorado.mp4"><img src="assets/videos/seu-decorado.jpg" alt="Vídeo Seu Decorado" loading="lazy"><span class="play" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg></span></a>
+        <img class="case" data-tipo="aplicacao" src="assets/apply/baijuju-avental.jpg" alt="Yakisoba Bai Juju — avental da equipe" loading="lazy">
+        <img class="case" data-tipo="aplicacao" src="assets/apply/laxlog-carreta.jpg" alt="Laxlog — carreta com a marca" loading="lazy">
+        <img class="case" data-tipo="aplicacao" src="assets/apply/comida-molho.jpg" alt="Ensaio de comida — molho de tomate entre tomates frescos" loading="lazy">
+      </div></div></div>
+    </div>
+  </section>
+
+  <section class="container" aria-labelledby="t-marcas">
+    <h2 class="centro" id="t-marcas"><span class="pt">Marcas com quem<br>já trabalhei</span><span class="en">Brands I've<br>worked with</span></h2>
+    <div class="marcas">
+      <div class="marca"><img src="assets/marcas/enlace.svg" alt="Enlace" loading="lazy"></div>
+      <div class="marca"><img src="assets/marcas/ponto.svg" alt="Ponto" loading="lazy"></div>
+      <div class="marca"><img src="assets/marcas/padonna.svg" alt="Padonna" loading="lazy"></div>
+      <div class="marca"><img src="assets/marcas/axlog.svg" alt="Axlog" loading="lazy"></div>
+      <div class="marca"><img src="assets/marcas/betuel.svg" alt="Betuel Transportes" loading="lazy"></div>
+      <div class="marca"><img src="assets/marcas/bai-juju.svg" alt="Bai Juju" loading="lazy"></div>
+      <div class="marca"><img src="assets/marcas/borges.svg" alt="Borges" loading="lazy"></div>
+      <div class="marca"><img src="assets/marcas/vila-nova.svg" alt="Vila Nova" loading="lazy"></div>
+      <div class="marca"><img src="assets/marcas/ferrasul.svg" alt="FerraSul" loading="lazy"></div>
+      <div class="marca"><img src="assets/marcas/energisa.svg" alt="Energisa" loading="lazy"></div>
+      <div class="marca"><img src="assets/marcas/luztol.svg" alt="Luztol Tintas" loading="lazy"></div>
+      <div class="marca"><img src="assets/marcas/gmd.svg" alt="GMD" loading="lazy"></div>
+      <div class="marca"><img src="assets/marcas/capueira.svg" alt="Capueira" loading="lazy"></div>
+      <div class="marca"><img src="assets/marcas/naue.svg" alt="Naue Consultoria" loading="lazy"></div>
+      <div class="marca marca--fim"><span class="pt">E muitas<br>outras…</span><span class="en">And much<br>more…</span></div>
+    </div>
+  </section>
+
+  <section class="container" id="sobre" aria-labelledby="t-sobre">
+    <div class="sobre">
+      <div class="sobre__col">
+        <h3 id="t-sobre"><span class="pt">Eu sou o João</span><span class="en">I'm João</span></h3>
+        <p class="sobre__apoio"><span class="pt">Mas meus amigos me chamam de Jhon</span><span class="en">But my friends call me Jhon</span></p>
+        <div class="sobre__texto" style="margin-top:var(--respiro)">
+          <p class="pt">Tenho 20 anos e trabalho com Branding (posicionamento de marcas), Design e Gravações no geral. Pode parecer que não, mas tudo está muito conectado.</p>
+          <p class="en">I'm 20 and I work with Branding (brand positioning), Design and filming in general. It may not look like it, but it's all deeply connected.</p>
+          <p class="pt">Porque me encontrei na função de traduzir. Transformar a ideia em realidade, seja em formato de vetor, estratégia ou em vídeo. Que é o que realmente interessa…</p>
+          <p class="en">Because I found myself in the job of translating. Turning the idea into reality — as a vector, as strategy, or as video. Which is what actually matters…</p>
+        </div>
+        <a class="botao" href="#contato"><span class="pt">Diferencie<em>-se</em></span><span class="en">Stand <em>out</em></span></a>
+      </div>
+      <img class="sobre__retrato" src="assets/fotos/retrato.jpg" alt="Retrato de Joao em preto e branco, sentado em um banco" loading="lazy">
+    </div>
+  </section>
+
+  <section aria-label="Vida pessoal">
+    <div class="mosaico">
+      <div class="mosaico__col">
+        <img src="assets/fotos/foto-01.jpg" alt="Duas pessoas sorrindo em um parque" loading="lazy">
+        <img src="assets/fotos/foto-04.jpg" alt="Pessoa segurando uma câmera fotográfica" loading="lazy">
+      </div>
+      <div class="mosaico__col">
+        <img src="assets/fotos/foto-02.jpg" alt="Três pessoas posando juntas" loading="lazy">
+        <img src="assets/fotos/foto-05.jpg" alt="João sorrindo ao ar livre, segurando um estabilizador de celular" loading="lazy">
+      </div>
+      <div class="mosaico__col">
+        <img src="assets/fotos/foto-03.jpg" alt="Duas pessoas conversando ao ar livre" loading="lazy">
+        <img src="assets/fotos/foto-06.jpg" alt="Retrato de João com a mão no queixo, sobre fundo neutro" loading="lazy">
+      </div>
+    </div>
+    <div class="container"><a class="botao botao--centro" href="https://www.instagram.com/ijoaovillela/" target="_blank" rel="noopener"><span class="pt">Siga meu IG</span><span class="en">Follow my IG</span></a></div>
+  </section>
+
+  <section class="container contato" id="contato" aria-labelledby="t-contato">
+    <div class="contato__linha">
+      <div>
+        <h2 id="t-contato"><span class="pt">Fale comigo</span><span class="en">Contact me</span></h2>
+        <p>
+          IG - <a href="https://www.instagram.com/ijoaovillela/" target="_blank" rel="noopener">@ijoaovillela</a><br>
+          <span class="pt">E-mail</span><span class="en">Mail</span> - <a href="mailto:joaopaulovillel@gmail.com">joaopaulovillel@gmail.com</a><br>
+          Whatsapp - <a href="https://wa.me/5562982282564" target="_blank" rel="noopener">(62) 9 8228-2564</a>
+        </p>
+      </div>
+      <span class="contato__logo" aria-hidden="true">
+        <svg class="logo--solida" viewBox="0 0 64 88" fill="none"><path d="M64 51.8968L46.5991 87.1361L44.2698 87.2773L43.301 83.6017L40.3501 72.3959L41.1968 69.9843C41.8687 68.0694 42.586 66.1686 43.3728 64.2925C44.3417 61.9845 45.3321 58.8291 45.6399 55.0087C45.9393 51.2671 45.4818 48.1199 44.9728 45.8955C43.8639 42.061 40.3022 39.414 36.2472 39.414H35.567C31.5491 39.414 28.0067 42.0151 26.869 45.8037C26.439 47.2313 26.1696 48.699 26.0678 50.1749C26.0055 51.1129 25.9804 52.5477 26.2821 54.6109C26.9743 59.3034 28.7408 62.9437 29.8857 65.2565C30.6952 66.8877 31.8952 69.8537 33.6149 72.3312C34.4736 76.8978 35.3299 81.0595 36.1897 85.1376C36.3718 86.0062 36.555 86.8689 36.737 87.7328L32.3192 88L18.7493 72.5383L0 53.5634L14.1099 56.8471L10.7675 48.2482L7.05496 35.8643L23.578 19.8082L29.8893 10.5032L24.7205 0L39.5442 8.49529L48.2698 22.5446V26.9229L54.2098 28.9308L63.9988 51.8956L64 51.8968Z" fill="currentColor"/></svg>
+        <svg class="logo--vazada" viewBox="-1.5 -1.5 67 91" fill="none"><path d="M64 51.8968L46.5991 87.1361L44.2698 87.2773L43.301 83.6017L40.3501 72.3959L41.1968 69.9843C41.8687 68.0694 42.586 66.1686 43.3728 64.2925C44.3417 61.9845 45.3321 58.8291 45.6399 55.0087C45.9393 51.2671 45.4818 48.1199 44.9728 45.8955C43.8639 42.061 40.3022 39.414 36.2472 39.414H35.567C31.5491 39.414 28.0067 42.0151 26.869 45.8037C26.439 47.2313 26.1696 48.699 26.0678 50.1749C26.0055 51.1129 25.9804 52.5477 26.2821 54.6109C26.9743 59.3034 28.7408 62.9437 29.8857 65.2565C30.6952 66.8877 31.8952 69.8537 33.6149 72.3312C34.4736 76.8978 35.3299 81.0595 36.1897 85.1376C36.3718 86.0062 36.555 86.8689 36.737 87.7328L32.3192 88L18.7493 72.5383L0 53.5634L14.1099 56.8471L10.7675 48.2482L7.05496 35.8643L23.578 19.8082L29.8893 10.5032L24.7205 0L39.5442 8.49529L48.2698 22.5446V26.9229L54.2098 28.9308L63.9988 51.8956L64 51.8968Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      </span>
+    </div>
+    <hr class="regua">
+  </section>
+
+</main>
+
+<div class="player" id="player" role="dialog" aria-modal="true" aria-label="Vídeo" hidden>
+  <div class="player__caixa">
+    <button type="button" class="botao player__fechar" data-fechar-player><span class="pt">Fechar</span><span class="en">Close</span></button>
+    <video controls playsinline preload="none"></video>
+  </div>
+</div>
+
+<script>
+  var raiz = document.documentElement;
+  raiz.dataset.idioma = 'pt';
+  raiz.dataset.modo = 'escuro';
+
+  // SPARK: o modo claro nasce no próprio botão e se espalha em círculo.
+  // Sem View Transitions, cai para transição de cor (ver @supports no CSS).
+  // Com prefers-reduced-motion, troca seca.
+  function trocarModo(botao) {
+    var claro = raiz.dataset.modo !== 'claro';
+    var aplicar = function () {
+      raiz.dataset.modo = claro ? 'claro' : 'escuro';
+      document.querySelectorAll('[data-toggle-modo]').forEach(function (o) {
+        o.setAttribute('aria-pressed', String(claro));
+      });
+    };
+    var seco = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (seco || !document.startViewTransition) { aplicar(); return; }
+
+    var r = botao.getBoundingClientRect();
+    var x = r.left + r.width / 2;
+    var y = r.top + r.height / 2;
+    var raio = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+
+    var de = 'circle(0px at ' + x + 'px ' + y + 'px)';
+    var ate = 'circle(' + raio + 'px at ' + x + 'px ' + y + 'px)';
+
+    var vt = document.startViewTransition(aplicar);
+    vt.ready.then(function () {
+      var novo = '::view-transition-new(root)';
+      var anima = function (quadros, ms, curva) {
+        raiz.animate(quadros, { duration: ms, easing: curva, fill: 'both', pseudoElement: novo });
+      };
+
+      // três camadas com tempos diferentes — é a defasagem entre elas que dá a
+      // sensação de ligar, em vez de um corte circular seco:
+
+      // 1. o alcance da luz: abre rápido e desacelera num rabo longo
+      anima({ clipPath: [de, ate] }, claro ? 820 : 620, 'cubic-bezier(.22,1,.36,1)');
+
+      // 2. a borda: entra translúcida e fecha cedo, para não virar linha dura
+      anima({ opacity: [claro ? 0.35 : 0.55, 1] }, claro ? 340 : 280, 'ease-out');
+
+      // 3. o filamento esquentando: só ao acender, e decai depois do movimento
+      if (claro) anima({ filter: ['brightness(1.5)', 'brightness(1)'] }, 980, 'ease-out');
+    }).catch(function () {
+      // a transição é abortada quando a aba está oculta ou quando outra
+      // começa por cima. o modo já trocou; só a animação não acontece.
+    });
+  }
+  document.querySelectorAll('[data-toggle-modo]').forEach(function (b) {
+    b.addEventListener('click', function () { trocarModo(b); });
+  });
+
+  document.querySelectorAll('[data-set-idioma]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      raiz.dataset.idioma = b.dataset.setIdioma;
+      raiz.lang = b.dataset.setIdioma === 'pt' ? 'pt-BR' : 'en';
+      document.querySelectorAll('[data-set-idioma]').forEach(function (o) {
+        o.setAttribute('aria-pressed', String(o === b));
+      });
+    });
+  });
+  // ---- WORKS: desfile lateral contínuo, arrastável, + filtros ----------
+  var VELOCIDADE = 42;    // px/s. baixo de propósito: é pano de fundo, não atração.
+  var ARRASTO_MIN = 6;    // px de gesto a partir dos quais deixa de ser clique
+  var ATRITO = 0.04;      // fração da inércia que sobra depois de 1s
+  var semMovimento = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var palco = document.querySelector('.sangra');
+
+  var faixas = [].slice.call(document.querySelectorAll('.faixa')).map(function (el) {
+    return { el: el, pista: el.querySelector('.pista'),
+             sentido: el.classList.contains('faixa--desloca') ? 1 : -1,
+             x: 0, passo: 0, vel: 0, solta: 0, andou: 0, viva: false };
+  });
+
+  // x vive sempre em (-passo, 0]. como a pista tem duas cópias, qualquer x
+  // nesse intervalo cobre a tela inteira — é isso que dá a volta sem emenda.
+  function dentro(f) {
+    if (!f.passo) { f.x = 0; return; }
+    f.x = f.x % f.passo;
+    if (f.x > 0) f.x -= f.passo;
+  }
+  function pinta(f) { f.pista.style.transform = 'translate3d(' + f.x + 'px,0,0)'; }
+
+  function montar(f) {
+    var grupo = f.pista.querySelector('.grupo');
+    [].slice.call(f.pista.querySelectorAll('.grupo')).slice(1).forEach(function (c) { c.remove(); });
+    f.viva = false; f.passo = 0;
+    f.el.classList.remove('faixa--viva');
+
+    var largura = grupo.getBoundingClientRect().width;
+    // sem layout ainda, ou tudo cabe na tela: fica parada
+    if (!largura || largura <= f.el.getBoundingClientRect().width) { f.x = 0; pinta(f); return; }
+
+    var copia = grupo.cloneNode(true);
+    copia.setAttribute('aria-hidden', 'true');
+    [].slice.call(copia.querySelectorAll('a')).forEach(function (a) { a.setAttribute('tabindex', '-1'); });
+    f.pista.appendChild(copia);
+
+    f.passo = largura + (parseFloat(getComputedStyle(f.pista).gap) || 0);
+    f.viva = true;
+    f.el.classList.add('faixa--viva');
+    dentro(f); pinta(f);
+  }
+  function montarTodas() { faixas.forEach(montar); }
+
+  // ---- o motor: um quadro por frame, nas duas fileiras
+  var mouseDentro = false, focoDentro = false, arrasto = null, ultimo = 0;
+  function quadro(agora) {
+    var dt = ultimo ? Math.min((agora - ultimo) / 1000, 0.05) : 0;
+    ultimo = agora;
+    var alvo = (mouseDentro || focoDentro || arrasto || raiz.dataset.player || raiz.dataset.portal || semMovimento.matches) ? 0 : VELOCIDADE;
+    faixas.forEach(function (f) {
+      if (!f.viva || (arrasto && arrasto.f === f)) { return; }
+      f.vel += (alvo - f.vel) * Math.min(1, dt * 2.5);   // freia e retoma devagar
+      f.solta *= Math.pow(ATRITO, dt);                    // inércia do gesto assenta
+      if (Math.abs(f.solta) < 2) { f.solta = 0; }
+      if (!f.vel && !f.solta) { return; }
+      f.x += (f.vel * f.sentido + f.solta) * dt;
+      dentro(f); pinta(f);
+    });
+    requestAnimationFrame(quadro);
+  }
+  requestAnimationFrame(quadro);
+
+  // ---- arrasto. move e solta escutam a janela: se o dedo sair da fileira
+  // no meio do gesto, o arrasto continua. sem pointer capture de propósito —
+  // capture redireciona o clique e quebraria o link dos cards de vídeo.
+  faixas.forEach(function (f) {
+    f.el.addEventListener('pointerdown', function (e) {
+      if (!f.viva || e.button > 0) { return; }
+      arrasto = { f: f, id: e.pointerId, x0: e.clientX, xAnt: e.clientX, tAnt: e.timeStamp, v: 0 };
+      f.solta = 0; f.vel = 0; f.andou = 0;
+      f.el.classList.add('arrastando');
+    });
+    f.el.addEventListener('dragstart', function (e) { e.preventDefault(); });
+    // arrastar não é clicar: se o gesto andou, o clique é engolido
+    f.el.addEventListener('click', function (e) {
+      if (f.andou > ARRASTO_MIN) { e.preventDefault(); e.stopPropagation(); }
+      f.andou = 0;
+    }, true);
+  });
+  addEventListener('pointermove', function (e) {
+    if (!arrasto || e.pointerId !== arrasto.id) { return; }
+    var f = arrasto.f, dx = e.clientX - arrasto.xAnt;
+    var dt = Math.max(1, e.timeStamp - arrasto.tAnt) / 1000;
+    arrasto.v = arrasto.v * 0.6 + (dx / dt) * 0.4;   // média: não herda o tranco do último evento
+    arrasto.xAnt = e.clientX; arrasto.tAnt = e.timeStamp;
+    f.andou = Math.max(f.andou, Math.abs(e.clientX - arrasto.x0));
+    f.x += dx; dentro(f); pinta(f);
+  });
+  function soltar(e) {
+    if (!arrasto || e.pointerId !== arrasto.id) { return; }
+    var f = arrasto.f;
+    var parou = e.timeStamp - arrasto.tAnt > 80;     // segurou parado antes de soltar
+    f.solta = (semMovimento.matches || parou || e.type === 'pointercancel') ? 0
+            : Math.max(-2400, Math.min(2400, arrasto.v));
+    f.el.classList.remove('arrastando');
+    arrasto = null;
+  }
+  addEventListener('pointerup', soltar);
+  addEventListener('pointercancel', soltar);
+
+  if (palco) {
+    palco.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') { mouseDentro = true; } });
+    palco.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse') { mouseDentro = false; } });
+    palco.addEventListener('focusin', function () { focoDentro = true; });
+    palco.addEventListener('focusout', function (e) { if (!palco.contains(e.relatedTarget)) { focoDentro = false; } });
+    // teclado: setas andam um card, nas duas fileiras
+    palco.addEventListener('keydown', function (e) {
+      var dir = e.key === 'ArrowRight' ? -1 : e.key === 'ArrowLeft' ? 1 : 0;
+      if (!dir) { return; }
+      e.preventDefault();
+      faixas.forEach(function (f) {
+        if (!f.viva) { return; }
+        var card = f.pista.querySelector('.case:not(.filtrado)');
+        var d = (card ? card.getBoundingClientRect().width : 400) + (parseFloat(getComputedStyle(f.pista).gap) || 0);
+        if (semMovimento.matches) { f.x += dir * d; dentro(f); pinta(f); }
+        else { f.solta += dir * d * Math.log(1 / ATRITO); }   // inércia calibrada para andar d
+      });
+    });
+  }
+
+  // medir na hora certa: o observer dispara de saída e a cada mudança real
+  var reagenda;
+  function remontar() { clearTimeout(reagenda); reagenda = setTimeout(montarTodas, 120); }
+  if (window.ResizeObserver && palco) {
+    new ResizeObserver(remontar).observe(palco);   // o palco, não a pista: evita laço
+  } else {
+    addEventListener('load', montarTodas);
+    addEventListener('resize', remontar);
+  }
+  montarTodas();
+
+  document.querySelectorAll('.filtros button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var qual = b.dataset.filtro;
+      b.parentElement.querySelectorAll('button').forEach(function (o) {
+        o.setAttribute('aria-pressed', String(o === b));
+      });
+      faixas.forEach(function (f) {
+        f.pista.querySelectorAll('.grupo:first-child .case').forEach(function (c) {
+          c.classList.toggle('filtrado', qual !== 'tudo' && c.dataset.tipo !== qual);
+        });
+        f.x = 0; f.solta = 0;
+      });
+      montarTodas();
+    });
+  });  // ---- player de vídeo local ------------------------------------------
+  // card com data-player abre o MP4 aqui dentro. sem JS, o href abre o arquivo.
+  var player = document.getElementById('player');
+  if (player) {
+    var tela = player.querySelector('video');
+    var botaoFechar = player.querySelector('[data-fechar-player]');
+    var voltarPara = null;
+
+    function abrirPlayer(card) {
+      // se clicou na cópia do desfile (aria-hidden), o foco volta para o original
+      var copia = card.closest('.grupo[aria-hidden]');
+      var original = copia && copia.parentElement.querySelector(
+        '.grupo:not([aria-hidden]) a[data-player][href="' + card.getAttribute('href') + '"]');
+      voltarPara = original || card;
+
+      var capa = card.querySelector('img');
+      tela.poster = capa ? (capa.currentSrc || capa.src) : '';
+      tela.src = card.getAttribute('href');
+      player.setAttribute('aria-label', capa && capa.alt ? capa.alt : 'Vídeo');
+      player.hidden = false;
+      raiz.dataset.player = 'aberto';
+      requestAnimationFrame(function () { player.classList.add('aberto'); });
+      botaoFechar.focus();
+      var tocando = tela.play();
+      if (tocando && tocando.catch) { tocando.catch(function () {}); }
+    }
+
+    function fecharPlayer() {
+      if (player.hidden) { return; }
+      tela.pause();
+      tela.removeAttribute('src'); tela.load();   // solta o arquivo da memória
+      player.classList.remove('aberto');
+      player.hidden = true;
+      delete raiz.dataset.player;
+      // preventScroll: focar um card fora da tela mexeria no scroll da faixa
+      if (voltarPara && document.contains(voltarPara)) { voltarPara.focus({ preventScroll: true }); }
+    }
+
+    document.addEventListener('click', function (e) {
+      var card = e.target.closest && e.target.closest('a[data-player]');
+      // defaultPrevented: o arrasto do WORKS já engoliu esse clique
+      if (!card || e.defaultPrevented) { return; }
+      e.preventDefault();
+      abrirPlayer(card);
+    });
+    player.addEventListener('click', function (e) {
+      if (e.target === player || e.target.closest('[data-fechar-player]')) { fecharPlayer(); }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (player.hidden) { return; }
+      if (e.key === 'Escape') { fecharPlayer(); return; }
+      // o Tab circula só entre o FECHAR e o vídeo enquanto o player está aberto
+      if (e.key === 'Tab') {
+        var focaveis = [botaoFechar, tela];
+        var i = focaveis.indexOf(document.activeElement);
+        e.preventDefault();
+        focaveis[(i + (e.shiftKey ? -1 : 1) + focaveis.length) % focaveis.length].focus();
+      }
+    });
+  }  // ---- portal: acender a vela ------------------------------------------
+  var portal = document.getElementById('portal');
+  if (portal && raiz.classList.contains('com-portal')) {
+    raiz.dataset.portalPronto = '1';            // avisa o script do topo: o portal está em boas mãos
+    raiz.dataset.portal = 'fechado';
+    var entrar = portal.querySelector('.portal__entrar');
+    var logoPortal = portal.querySelector('.portal__logo');
+    var textoPortal = portal.querySelector('.portal__texto');
+    var brilho = document.createElement('div');
+    brilho.className = 'portal__brilho';
+    portal.insertBefore(brilho, entrar);
+
+    // enquanto está fechado, o resto da página não recebe foco nem leitor de tela
+    var bloqueados = [].slice.call(document.body.children).filter(function (el) {
+      return el !== portal && el.tagName !== 'SCRIPT';
+    });
+    bloqueados.forEach(function (el) { el.inert = true; });
+    entrar.focus({ preventScroll: true });
+
+    function revelar() {
+      bloqueados.forEach(function (el) { el.inert = false; });
+      raiz.classList.remove('com-portal');
+      delete raiz.dataset.portal;
+      portal.remove();
+      var primeiro = document.querySelector('.nav a');
+      if (primeiro) { primeiro.focus({ preventScroll: true }); }
+    }
+
+    function acender() {
+      if (raiz.dataset.portal !== 'fechado') { return; }
+      raiz.dataset.portal = 'acendendo';
+      if (semMovimento.matches) { revelar(); return; }
+
+      var r = logoPortal.getBoundingClientRect();
+      var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      portal.style.setProperty('--luz-x', cx + 'px');
+      portal.style.setProperty('--luz-y', cy + 'px');
+      var alcance = Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy));
+      var DUR = 1700, t0 = performance.now();
+
+      (function quadroPortal(agora) {
+        var t = Math.min(1, (agora - t0) / DUR);
+        // chama (0–22%): a logo esquenta e o halo acende
+        var chama = Math.min(1, t / 0.22);
+        logoPortal.style.filter = 'brightness(' + (1 + chama * 0.8) + ') drop-shadow(0 0 ' + (chama * 28) + 'px rgba(255,224,188,.55))';
+        brilho.style.opacity = String(chama * (1 - Math.max(0, (t - 0.55) / 0.45)));
+        brilho.style.transform = 'translate(-50%,-50%) scale(' + (0.3 + chama * 0.9 + t * 1.2) + ')';
+        // marca sai (18–38%)
+        var some = String(1 - Math.min(1, Math.max(0, (t - 0.18) / 0.2)));
+        logoPortal.style.opacity = some; textoPortal.style.opacity = some;
+        // luz (12–100%): o escuro abre a partir da logo; sai rápido, assenta devagar,
+        // com tremor de chama que só existe enquanto cresce
+        var u = Math.max(0, (t - 0.12) / 0.88);
+        var e = 1 - Math.pow(1 - u, 3.2);
+        var tremor = (Math.sin(agora / 37) * 0.012 + Math.sin(agora / 91) * 0.018) * (1 - u);
+        var raio = alcance * 1.25 * e * (1 + tremor);
+        portal.style.setProperty('--luz', raio + 'px');
+        portal.style.setProperty('--pena', Math.max(60, raio * 0.55) + 'px');
+        if (t < 1) { requestAnimationFrame(quadroPortal); } else { revelar(); }
+      })(t0);
+    }
+    entrar.addEventListener('click', acender);
+  }</script>
+</body>
+</html>
