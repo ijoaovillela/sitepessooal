@@ -238,7 +238,8 @@
   .player[hidden]{ display:none; }
   .player.aberto{ opacity:1; }
   .player__caixa{ width:min(1200px,100%); display:flex; flex-direction:column; gap:16px; }
-  .player video{ width:100%; aspect-ratio:16/9; background:#000; border-radius:var(--raio); display:block; }
+  .player video, .player__yt{ width:100%; aspect-ratio:16/9; background:#000; border-radius:var(--raio); display:block; border:0; }
+  .player video[hidden], .player__yt[hidden]{ display:none; }
   /* o .botao vem depois no arquivo; a especificidade dupla vence a margem dele */
   .player .player__fechar{ margin-top:0; align-self:flex-end; }
   html[data-player]{ overflow:hidden; }
@@ -433,7 +434,7 @@
         <a class="case" data-tipo="video" href="https://www.youtube.com/watch?v=-GtcAelYB4M" target="_blank" rel="noopener"><img src="assets/videos/enlace-video.jpg" alt="Vídeo Enlace" loading="lazy"><span class="play" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg></span></a>
         <img class="case" data-tipo="aplicacao" src="assets/apply/padonna-outdoor.jpg" alt="Padonna — outdoor de inauguração" loading="lazy">
         <img class="case" data-tipo="marca" src="assets/cases/padonna.jpg" alt="Padonna — fachada da panificadora" loading="lazy">
-        <a class="case" data-tipo="video" data-player href="assets/videos/um-ano-de-padonna.mp4"><img src="assets/videos/um-ano-de-padonna.jpg" alt="Vídeo Um ano de Padonna" loading="lazy"><span class="play" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg></span></a>
+        <a class="case" data-tipo="video" data-player data-yt="L6Ug47-EBl8" href="https://youtu.be/L6Ug47-EBl8" target="_blank" rel="noopener"><img src="assets/videos/um-ano-de-padonna.jpg" alt="Vídeo Um ano de Padonna" loading="lazy"><span class="play" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg></span></a>
         <img class="case" data-tipo="aplicacao" src="assets/apply/laxlog-frota.jpg" alt="Laxlog — caminhões da frota na rua" loading="lazy">
         <img class="case" data-tipo="marca" src="assets/cases/bai-juju.jpg" alt="Yakisoba Bai Juju — fachada iluminada à noite" loading="lazy">
         <img class="case" data-tipo="aplicacao" src="assets/apply/comida-queijo.jpg" alt="Ensaio de comida — queijo ralado caindo sobre o bloco" loading="lazy">
@@ -452,7 +453,7 @@
         <img class="case" data-tipo="aplicacao" src="assets/apply/padonna-saco.jpg" alt="Padonna — saco de pão" loading="lazy">
         <img class="case" data-tipo="aplicacao" src="assets/apply/comida-azeite.jpg" alt="Ensaio de comida — garrafa de azeite de oliva" loading="lazy">
         <img class="case" data-tipo="aplicacao" src="assets/apply/martina-caixa.jpg" alt="Martina — caixa da marca" loading="lazy">
-        <a class="case" data-tipo="video" data-player href="assets/videos/seu-decorado.mp4"><img src="assets/videos/seu-decorado.jpg" alt="Vídeo Seu Decorado" loading="lazy"><span class="play" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg></span></a>
+        <a class="case" data-tipo="video" data-player data-yt="YZIY63O7UUo" href="https://youtu.be/YZIY63O7UUo" target="_blank" rel="noopener"><img src="assets/videos/seu-decorado.jpg" alt="Vídeo Seu Decorado" loading="lazy"><span class="play" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg></span></a>
         <img class="case" data-tipo="aplicacao" src="assets/apply/baijuju-avental.jpg" alt="Yakisoba Bai Juju — avental da equipe" loading="lazy">
         <img class="case" data-tipo="aplicacao" src="assets/apply/laxlog-carreta.jpg" alt="Laxlog — carreta com a marca" loading="lazy">
         <img class="case" data-tipo="aplicacao" src="assets/apply/comida-molho.jpg" alt="Ensaio de comida — molho de tomate entre tomates frescos" loading="lazy">
@@ -762,25 +763,49 @@
 
     function abrirPlayer(card) {
       // se clicou na cópia do desfile (aria-hidden), o foco volta para o original
+      var yt = card.getAttribute('data-yt');
       var copia = card.closest('.grupo[aria-hidden]');
-      var original = copia && copia.parentElement.querySelector(
-        '.grupo:not([aria-hidden]) a[data-player][href="' + card.getAttribute('href') + '"]');
+      var seletor = yt
+        ? '.grupo:not([aria-hidden]) a[data-player][data-yt="' + yt + '"]'
+        : '.grupo:not([aria-hidden]) a[data-player][href="' + card.getAttribute('href') + '"]';
+      var original = copia && copia.parentElement.querySelector(seletor);
       voltarPara = original || card;
 
       var capa = card.querySelector('img');
-      tela.poster = capa ? (capa.currentSrc || capa.src) : '';
-      tela.src = card.getAttribute('href');
       player.setAttribute('aria-label', capa && capa.alt ? capa.alt : 'Vídeo');
+
+      if (yt) {
+        // vídeo do YouTube: embute num iframe dentro do próprio player (§6, fonte YouTube)
+        tela.hidden = true;
+        var frame = document.createElement('iframe');
+        frame.className = 'player__yt';
+        frame.src = 'https://www.youtube-nocookie.com/embed/' + yt + '?autoplay=1&rel=0&playsinline=1';
+        frame.title = capa && capa.alt ? capa.alt : 'Vídeo';
+        frame.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture; fullscreen');
+        frame.setAttribute('allowfullscreen', '');
+        player.__yt = frame;
+        tela.parentNode.insertBefore(frame, tela);
+      } else {
+        // arquivo local: toca no elemento <video>
+        tela.hidden = false;
+        tela.poster = capa ? (capa.currentSrc || capa.src) : '';
+        tela.src = card.getAttribute('href');
+      }
+
       player.hidden = false;
       raiz.dataset.player = 'aberto';
       requestAnimationFrame(function () { player.classList.add('aberto'); });
       botaoFechar.focus();
-      var tocando = tela.play();
-      if (tocando && tocando.catch) { tocando.catch(function () {}); }
+      if (!yt) {
+        var tocando = tela.play();
+        if (tocando && tocando.catch) { tocando.catch(function () {}); }
+      }
     }
 
     function fecharPlayer() {
       if (player.hidden) { return; }
+      if (player.__yt) { player.__yt.remove(); player.__yt = null; }  // solta o YouTube
+      tela.hidden = false;
       tela.pause();
       tela.removeAttribute('src'); tela.load();   // solta o arquivo da memória
       player.classList.remove('aberto');
@@ -805,7 +830,7 @@
       if (e.key === 'Escape') { fecharPlayer(); return; }
       // o Tab circula só entre o FECHAR e o vídeo enquanto o player está aberto
       if (e.key === 'Tab') {
-        var focaveis = [botaoFechar, tela];
+        var focaveis = [botaoFechar, player.__yt || tela];
         var i = focaveis.indexOf(document.activeElement);
         e.preventDefault();
         focaveis[(i + (e.shiftKey ? -1 : 1) + focaveis.length) % focaveis.length].focus();
